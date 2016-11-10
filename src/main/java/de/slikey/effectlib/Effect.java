@@ -1,13 +1,19 @@
 package de.slikey.effectlib;
 
+import com.flowpowered.math.vector.Vector3d;
 import de.slikey.effectlib.util.DynamicLocation;
 import de.slikey.effectlib.util.ParticleEffect;
-import org.bukkit.Bukkit;
-import org.bukkit.Color;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.entity.Entity;
+import org.bukkit.util.SchedulerAdapter;
 import org.bukkit.util.Vector;
+import org.spongepowered.api.Sponge;
+import org.spongepowered.api.block.BlockState;
+import org.spongepowered.api.effect.particle.ParticleOption;
+import org.spongepowered.api.entity.Entity;
+import org.spongepowered.api.entity.Transform;
+import org.spongepowered.api.item.inventory.ItemStackSnapshot;
+import org.spongepowered.api.util.Color;
+import org.spongepowered.api.world.Location;
+import org.spongepowered.api.world.World;
 
 public abstract class Effect implements Runnable {
 
@@ -22,7 +28,7 @@ public abstract class Effect implements Runnable {
      * Can be used to colorize certain particles. As of 1.8, those
      * include SPELL_MOB_AMBIENT, SPELL_MOB and REDSTONE.
      */
-    public Color color = null;
+    public ParticleOption<Color> color = null;
 
     /**
      * This can be used to give particles a set speed when spawned.
@@ -113,7 +119,8 @@ public abstract class Effect implements Runnable {
     /**
      * The Material and data to use for block and item break particles
      */
-    public Material material;
+    public ParticleOption<BlockState> material;
+    ParticleOption<ItemStackSnapshot> material2;
     public Byte materialData;
 
     /**
@@ -197,17 +204,14 @@ public abstract class Effect implements Runnable {
                             effect.onRun();
                         } catch (Exception ex) {
                             effectManager.onError(ex);
-                            Bukkit.getScheduler().runTask(effectManager.getOwningPlugin(), new Runnable() {
-                                @Override
-                                public void run() {
-                                    effect.done();
-                                }
-                            });
+                            Sponge.getScheduler().createTaskBuilder()
+                                    .execute(() -> effect.done())
+                                    .submit(effectManager.getOwningPlugin());
                         }
                     }
                 };
             }
-            Bukkit.getScheduler().runTaskAsynchronously(effectManager.getOwningPlugin(), asyncRunnableTask);
+            SchedulerAdapter.getInstance().runTaskAsynchronously(effectManager.getOwningPlugin(), asyncRunnableTask);
         } else {
             try {
                 onRun();
@@ -269,7 +273,7 @@ public abstract class Effect implements Runnable {
      * This method will not return null when called from onRun. Effects
      * with invalid locations will be cancelled.
      */
-    public final Location getLocation() {
+    public final Location<World> getLocation() {
         return origin == null ? null : origin.getLocation();
     }
 
@@ -279,7 +283,7 @@ public abstract class Effect implements Runnable {
      *
      * Unlike getLocation, this may return null.
      */
-    public final Location getTarget() {
+    public final Location<World> getTarget() {
         return target == null ? null : target.getLocation();
     }
 
@@ -294,10 +298,10 @@ public abstract class Effect implements Runnable {
         if (origin == null) return;
 
         if (offset != null) {
-            origin.addOffset(offset);
+            origin.addOffset(offset.sponge());
         }
         if (relativeOffset != null) {
-            origin.addRelativeOffset(relativeOffset);
+            origin.addRelativeOffset(relativeOffset.sponge());
         }
         origin.setDirectionOffset(yawOffset, pitchOffset);
         origin.setUpdateLocation(updateLocations);
@@ -322,15 +326,15 @@ public abstract class Effect implements Runnable {
         // Check for a valid Location
         updateLocation();
         updateTarget();
-        Location location = getLocation();
+        Location<World> location = getLocation();
         if (location == null) {
             return false;
         }
         if (autoOrient) {
-            Location targetLocation = target == null ? null : target.getLocation();
+            Transform<World> targetLocation = target == null ? null : target.getTransform();
             if (targetLocation != null) {
-                Vector direction = targetLocation.toVector().subtract(location.toVector());
-                location.setDirection(direction);
+                Vector3d direction = targetLocation.getPosition().sub(location.getPosition());
+                location.setPosition(direction);
                 targetLocation.setDirection(direction.multiply(-1));
             }
         }
@@ -359,19 +363,19 @@ public abstract class Effect implements Runnable {
         }
     }
 
-    protected void display(ParticleEffect effect, Location location) {
+    protected void display(ParticleEffect effect, Location<World> location) {
         display(effect, location, this.color);
     }
 
-    protected void display(ParticleEffect particle, Location location, Color color) {
+    protected void display(ParticleEffect particle, Location<World> location, Color color) {
         display(particle, location, color, speed, particleCount);
     }
 
-    protected void display(ParticleEffect particle, Location location, float speed, int amount) {
+    protected void display(ParticleEffect particle, Location<World> location, float speed, int amount) {
         display(particle, location, this.color, speed, amount);
     }
 
-    protected void display(ParticleEffect particle, Location location, Color color, float speed, int amount) {
+    protected void display(ParticleEffect particle, Location<World> location, Color color, float speed, int amount) {
         particle.display(particle.getData(material, materialData), location, color, visibleRange, particleOffsetX, particleOffsetY, particleOffsetZ, speed, amount);
     }
 
@@ -385,7 +389,7 @@ public abstract class Effect implements Runnable {
         origin = new DynamicLocation(entity);
     }
 
-    public void setLocation(Location location) {
+    public void setLocation(Location<World> location) {
         origin = new DynamicLocation(location);
     }
 
@@ -393,7 +397,7 @@ public abstract class Effect implements Runnable {
         target = new DynamicLocation(entity);
     }
 
-    public void setTargetLocation(Location location) {
+    public void setTargetLocation(Location<World> location) {
         target = new DynamicLocation(location);
     }
 }

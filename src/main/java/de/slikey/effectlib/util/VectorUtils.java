@@ -1,7 +1,8 @@
 package de.slikey.effectlib.util;
 
-import org.bukkit.Location;
 import org.bukkit.util.Vector;
+import org.spongepowered.api.entity.Transform;
+import org.spongepowered.api.world.World;
 
 public final class VectorUtils {
 
@@ -59,8 +60,8 @@ public final class VectorUtils {
      * @param location
      * @return
      */
-    public static final Vector rotateVector(Vector v, Location location) {
-        return rotateVector(v, location.getYaw(), location.getPitch());
+    public static final Vector rotateVector(Vector v, Transform<World> location) {
+        return rotateVector(v, (float) location.getYaw(), (float) location.getPitch());
     }
 
     /**

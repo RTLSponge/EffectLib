@@ -1,5 +1,7 @@
 package de.slikey.effectlib;
 
+import com.sun.prism.Material;
+import com.sun.prism.paint.Color;
 import de.slikey.effectlib.util.Disposable;
 import de.slikey.effectlib.util.DynamicLocation;
 import de.slikey.effectlib.util.ParticleEffect;
@@ -12,18 +14,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
-import org.bukkit.Bukkit;
-import org.bukkit.Color;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Sound;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.Entity;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitScheduler;
-import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.util.NumberConversions;
+import org.bukkit.util.SchedulerAdapter;
 import org.bukkit.util.Vector;
+import org.spongepowered.api.entity.Entity;
+import org.spongepowered.api.scheduler.Task;
+import org.spongepowered.api.world.Location;
+import org.spongepowered.api.world.World;
 
 /**
  * Dispose the EffectManager if you don't need him anymore.
@@ -35,17 +31,17 @@ public final class EffectManager implements Disposable {
 
     private static List<EffectManager> effectManagers;
     private static Map<String, Class<? extends Effect>> effectClasses = new HashMap<String, Class<? extends Effect>>();
-    private final Plugin owningPlugin;
-    private final Map<Effect, BukkitTask> effects;
+    private final EffectLib owningPlugin;
+    private final Map<Effect, Task> effects;
     private boolean disposed;
     private boolean disposeOnTermination;
     private boolean debug = false;
     private int visibleRange = 32;
 
-    public EffectManager(Plugin owningPlugin) {
+    public EffectManager(EffectLib owningPlugin) {
         ParticleEffect.ParticlePacket.initialize();
         this.owningPlugin = owningPlugin;
-        effects = new HashMap<Effect, BukkitTask>();
+        effects = new HashMap<Effect, Task>();
         disposed = false;
         disposeOnTermination = false;
     }
@@ -62,8 +58,8 @@ public final class EffectManager implements Disposable {
             effect.cancel(false);
         }
 
-        BukkitScheduler s = Bukkit.getScheduler();
-        BukkitTask task = null;
+        SchedulerAdapter s = SchedulerAdapter.getInstance();
+        Task task = null;
         switch (effect.type) {
             case INSTANT:
                 task = s.runTask(owningPlugin, effect);
@@ -80,7 +76,7 @@ public final class EffectManager implements Disposable {
         }
     }
 
-    public Effect start(String effectClass, ConfigurationSection parameters, Location origin, Entity originEntity) {
+    public Effect start(String effectClass, ConfigurationSection parameters, Location<World> origin, Entity originEntity) {
         return start(effectClass, parameters, origin, null, originEntity, null, null);
     }
 
@@ -88,7 +84,7 @@ public final class EffectManager implements Disposable {
         return start(effectClass, parameters, originEntity == null ? null : originEntity.getLocation(), null, originEntity, null, null);
     }
 
-    public Effect start(String effectClass, ConfigurationSection parameters, Location origin) {
+    public Effect start(String effectClass, ConfigurationSection parameters, Location<World> origin) {
         return start(effectClass, parameters, origin, null, null, null, null);
     }
 
@@ -104,7 +100,7 @@ public final class EffectManager implements Disposable {
      * @param parameterMap A map of parameter values to replace. These must start with the "$" character, values in the parameters map that contain a $key will be replaced with the value in this parameterMap.
      * @return
      */
-    public Effect start(String effectClass, ConfigurationSection parameters, Location origin, Location target, Entity originEntity, Entity targetEntity, Map<String, String> parameterMap) {
+    public Effect start(String effectClass, ConfigurationSection parameters, Location<World> origin, Location<World> target, Entity originEntity, Entity targetEntity, Map<String, String> parameterMap) {
         return start(effectClass, parameters, new DynamicLocation(origin, originEntity), new DynamicLocation(target, targetEntity), parameterMap);
     }
 
@@ -168,21 +164,21 @@ public final class EffectManager implements Disposable {
     }
     
     public void cancel(boolean callback) {
-        for (Map.Entry<Effect, BukkitTask> entry : effects.entrySet()) {
+        for (Map.Entry<Effect, Task> entry : effects.entrySet()) {
             entry.getKey().cancel(callback);
         }
     }
     
     public void done(Effect effect) {
         synchronized (this) {
-            BukkitTask existingTask = effects.get(effect);
+            Task existingTask = effects.get(effect);
             if (existingTask != null) {
                 existingTask.cancel();
             }
             effects.remove(effect);
         }
         if (effect.callback != null) {
-            Bukkit.getScheduler().runTask(owningPlugin, effect.callback);
+            SchedulerAdapter.getInstance().runTask(owningPlugin, effect.callback);
         }
         if (disposeOnTermination && effects.isEmpty()) {
             dispose();
@@ -230,7 +226,7 @@ public final class EffectManager implements Disposable {
         visibleRange = range;
     }
 
-    public Plugin getOwningPlugin() {
+    public Object getOwningPlugin() {
         return owningPlugin;
     }
 

@@ -1,28 +1,9 @@
 package de.slikey.effectlib.listener;
 
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
-import org.bukkit.event.entity.ItemDespawnEvent;
-import org.bukkit.event.player.PlayerPickupItemEvent;
+public class ItemListener {
 
-public class ItemListener implements Listener {
-
-    public static final String ITEM_IDENTIFIER = "EffectItem";
-
-    @EventHandler
-    public void onItemPickup(PlayerPickupItemEvent event) {
-        if (event.getItem().hasMetadata(ITEM_IDENTIFIER)) {
-            event.setCancelled(true);
-            return;
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void onItemDespawn(ItemDespawnEvent event) {
-        if (event.getEntity().hasMetadata(ITEM_IDENTIFIER)) {
-            event.setCancelled(true);
-            return;
-        }
-    }
+    public static String ITEM_IDENTIFIER = "EffectItem";
+    // TODO: 5/11/2016 replace this with no pickup data
+    // TODO: 5/11/2016 prevent item despawning sponge style
+    // TODO: 5/11/2016 create data
 }

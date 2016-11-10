@@ -1,17 +1,22 @@
 package de.slikey.effectlib.util;
 
-import java.lang.ref.WeakReference;
-import org.bukkit.Location;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.LivingEntity;
+import com.flowpowered.math.vector.Vector3d;
+import org.bukkit.util.DirectionUtils;
 import org.bukkit.util.Vector;
+import org.spongepowered.api.data.property.entity.EyeLocationProperty;
+import org.spongepowered.api.entity.Entity;
+import org.spongepowered.api.entity.Transform;
+import org.spongepowered.api.world.World;
+
+import java.lang.ref.WeakReference;
+import java.util.Optional;
 
 /**
  * Represents a Location that can move, possibly bound to an Entity.
  */
 public class DynamicLocation {
-    private final Location location;
-    private final Location originalLocation;
+    private Transform<World> location;
+    private Transform<World> originalLocation;
     private final WeakReference<Entity> entity;
     private float yawOffset;
     private float pitchOffset;
@@ -20,13 +25,10 @@ public class DynamicLocation {
     private Vector entityOffset;
     private boolean updateLocation = true;
     private boolean updateDirection = true;
+    private Transform<World> transform;
 
-    public DynamicLocation(Location location) {
-        if (location != null) {
-            this.location = location.clone();
-        } else {
-            this.location = null;
-        }
+    public DynamicLocation(Transform<World> location) {
+        this.location = location;
         this.originalLocation = location;
         this.entity = null;
     }
@@ -42,9 +44,9 @@ public class DynamicLocation {
         this.originalLocation = location;
     }
 
-    public DynamicLocation(Location location, Entity entity) {
+    public DynamicLocation(Transform<World> location, Entity entity) {
         if (location != null) {
-            this.location = location.clone();
+            this.location = location;
         } else if (entity != null) {
             this.location = getEntityLocation(entity);
         } else {
@@ -52,27 +54,27 @@ public class DynamicLocation {
         }
         if (entity != null) {
             this.entity = new WeakReference<Entity>(entity);
-            this.entityOffset = this.location.toVector().subtract(getEntityLocation(entity).toVector());
+            this.entityOffset = this.location.getPosition().sub(getEntityLocation(entity).getPosition());
         } else {
             this.entity = null;
         }
         this.originalLocation = location;
     }
 
-    public void addOffset(Vector offset) {
+    public void addOffset(Vector3d offset) {
         if (this.offset == null) {
-            this.offset = offset.clone();
+            this.offset = offset;
         } else {
-            this.offset.add(offset);
+            this.offset = this.offset.add(offset);
         }
         this.updateOffsets();
     }
 
     public void addRelativeOffset(Vector offset) {
         if (this.relativeOffset == null) {
-            this.relativeOffset = offset.clone();
+            this.relativeOffset = offset;
         } else {
-            this.relativeOffset.add(offset);
+            this.relativeOffset = this.relativeOffset.add(offset);
         }
         this.updateOffsets();
     }
@@ -81,50 +83,50 @@ public class DynamicLocation {
         return entity == null ? null : entity.get();
     }
 
-    public Location getLocation() {
+    public Transform<World> getLocation() {
         return location;
     }
 
-    protected Location getEntityLocation(Entity entity) {
-        if (entity instanceof LivingEntity) {
-            return ((LivingEntity) entity).getEyeLocation();
+    protected Transform<World> getEntityLocation(Entity entity) {
+        Optional<EyeLocationProperty> eye = entity.getProperty(EyeLocationProperty.class);
+        Transform<World> t = entity.getTransform();
+        if(eye.isPresent()){
+            t.setPosition(eye.get().getValue());
         }
-        return entity.getLocation();
+        return t;
     }
 
-    public void setDirection(Vector direction) {
-        location.setDirection(direction);
+    public void setDirection(Vector3d direction) {
+        location = DirectionUtils.fromDirection(direction, location);
         updateDirectionOffsets();
     }
 
     protected void updateDirectionOffsets() {
         if (yawOffset != 0) {
-            location.setYaw(location.getYaw() + yawOffset);
+            Vector3d r = location.getRotation();
+            location = location.setRotation(r.add(0, this.yawOffset, 0));
         }
         if (pitchOffset != 0) {
-            location.setPitch(location.getPitch() + pitchOffset);
+            Vector3d r = location.getRotation();
+            location = location.setRotation(r.add(pitchOffset, 0, 0));
         }
     }
 
-    public void updateFrom(Location newLocation) {
+    public void updateFrom(Transform<World> newLocation) {
         if (originalLocation != null) {
-            originalLocation.setX(newLocation.getX());
-            originalLocation.setY(newLocation.getY());
-            originalLocation.setZ(newLocation.getZ());
+            originalLocation = newLocation;
         }
         updateOffsets();
     }
 
     public void updateOffsets() {
         if (originalLocation == null || location == null) return;
-        location.setX(originalLocation.getX());
-        location.setY(originalLocation.getY());
-        location.setZ(originalLocation.getZ());
+            location = originalLocation;
         if (offset != null) {
-            location.add(offset);
+            location = location.setPosition(location.getPosition().add(offset));
         }
         if (relativeOffset != null) {
-            location.add(VectorUtils.rotateVector(relativeOffset, location));
+            location = location.add(VectorUtils.rotateVector(relativeOffset, location));
         }
         if (entityOffset != null) {
             location.add(entityOffset);
@@ -142,9 +144,10 @@ public class DynamicLocation {
 
         Entity entityReference = entity == null ? null : entity.get();
         if (entityReference != null) {
-            Location currentLocation = getEntityLocation(entityReference);
+            Transform<World> currentLocation = getEntityLocation(entityReference);
             if (updateDirection)
             {
+
                 setDirection(currentLocation.getDirection());
             }
             if (updateLocation)
@@ -162,5 +165,9 @@ public class DynamicLocation {
         this.pitchOffset = pitchOffset;
         this.yawOffset = yawOffset;
         updateDirectionOffsets();
+    }
+
+    public Transform<World> getTransform() {
+        return transform;
     }
 }

@@ -1,7 +1,7 @@
 package de.slikey.effectlib.event;
 
-import org.bukkit.event.Event;
+import org.spongepowered.api.event.impl.AbstractEvent;
 
-public abstract class EffectEvent extends Event {
+public abstract class EffectEvent extends AbstractEvent {
 
 }

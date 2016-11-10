@@ -1,9 +1,0 @@
-name: EffectLib
-main: de.slikey.effectlib.EffectLib
-version: ${project.version}
-description: This library supports other plugins to perform cool effects.
-author: Slikey
-website: http://www.kevin-carstens.de/
-prefix: Effect Library
-load: POSTWORLD
-database: false

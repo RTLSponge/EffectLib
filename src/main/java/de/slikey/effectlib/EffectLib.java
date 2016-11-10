@@ -1,10 +1,17 @@
 package de.slikey.effectlib;
 
+import com.google.inject.Inject;
 import de.slikey.effectlib.entity.EntityManager;
 import de.slikey.effectlib.listener.ItemListener;
 import java.util.List;
-import org.bukkit.event.HandlerList;
-import org.bukkit.plugin.java.JavaPlugin;
+import java.util.logging.Logger;
+
+import org.spongepowered.api.Sponge;
+import org.spongepowered.api.event.Listener;
+import org.spongepowered.api.event.game.GameReloadEvent;
+import org.spongepowered.api.event.game.state.GameStartingServerEvent;
+import org.spongepowered.api.event.game.state.GameStoppingServerEvent;
+import org.spongepowered.api.plugin.Plugin;
 
 /*! \mainpage EffectLib Plugin API
 *
@@ -120,16 +127,30 @@ import org.bukkit.plugin.java.JavaPlugin;
 * </pre>
 * 
 */
-public final class EffectLib extends JavaPlugin {
+@Plugin(
+        id = "EffectLib",
+        name = "Effect Library",
+        version = "${project.version}",
+        description = "This library supports other plugins to perform cool effects.",
+        authors = "Slikey",
+        url = "http://www.kevin-carstens.de/"
+
+)
+public final class EffectLib {
 
     private static EffectLib instance;
     private EntityManager entityManager;
+    @Inject
+    private Logger logger;
 
     public EffectLib() {
         instance = this;
     }
 
-    @Override
+    @Listener public void onGameStartingServer(GameStartingServerEvent event) {
+        this.onEnable();
+    }
+
     public void onEnable() {
         entityManager = new EntityManager(this);
         EffectManager.initialize();
@@ -137,11 +158,19 @@ public final class EffectLib extends JavaPlugin {
         loadListeners();
     }
 
-    @Override
+    @Listener public void onGameStoppingServer(GameStoppingServerEvent event) {
+        this.onDisable();
+    }
+
     public void onDisable() {
         entityManager.dispose();
         EffectManager.disposeAll();
-        HandlerList.unregisterAll(this);
+        Sponge.getEventManager().unregisterPluginListeners(this);
+    }
+
+    @Listener public void onGameReload(GameReloadEvent event) {
+        this.onDisable();
+        this.onEnable();
     }
 
     public EntityManager getEntityManager() {
@@ -153,11 +182,14 @@ public final class EffectLib extends JavaPlugin {
     }
 
     private void loadListeners() {
-        getServer().getPluginManager().registerEvents(new ItemListener(), this);
+        Sponge.getEventManager().registerListeners(this, new ItemListener());
     }
 
     public static EffectLib instance() {
         return instance;
     }
 
+    public Logger getLogger() {
+        return logger;
+    }
 }
